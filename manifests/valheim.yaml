@@ -87,10 +87,13 @@ spec:
   ports:
     - name: udp1
       port: 2456
+      protocol: udp
     - name: udp2
       port: 2457
+      protocol: udp
     - name: udp3
-      port: 2457            
+      port: 2458
+      protocol: udp           
   selector:
     app.kubernetes.io/name: valheim-server
   type: LoadBalancer
