@@ -1,0 +1,102 @@
+---
+  apiVersion: "v1"
+  kind: "PersistentVolumeClaim"
+  metadata:
+    name: valheim-data
+  spec:
+    resources:
+      requests:
+        storage: 20Gi
+    accessModes:
+      - ReadWriteOnce
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: valheim-server
+  labels:
+    app.kubernetes.io/name: valheim-server   
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: valheim-server
+  strategy:
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: valheim-server
+    spec:
+      serviceAccountName: valheim-server
+      containers:
+      - name: valheim-server
+        image: mbround18/valheim:1.1.1
+        ports:
+        - name: udp1
+          containerPort: 2456
+        - name: udp2
+          containerPort: 2457
+        - name: udp3
+          containerPort: 2458                    
+        env:
+        - name: POD_UID
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: metadata.uid
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: metadata.name 
+        - name: PORT
+          value: 2456
+        - name: NAME
+          value: "K8S With Valheim Docker"
+        - name: WORLD
+          value: "K8S Dedicated"
+        - name: PASSWORD
+          value: "Porter"
+        - name: TZ
+          value: America/Chicago
+        - name: PUBLIC
+          value: 1
+        - name: AUTO_UPDATE
+          value: 0                
+        volumeMounts:
+            - mountPath: /home/steam/.config/unity3d/IronGate/Valheim
+              name: valheim-data  
+              subPath: saves
+            - mountPath: /home/steam/valheim
+              name: valheim-data  
+              subPath: server              
+      volumes:
+        - name: valheim-data
+          persistentVolumeClaim:
+            claimName: valheim-data        
+      #Currently the only images are amd64 if you change the image change the node selector. 
+      nodeSelector:
+        kubernetes.io/arch: amd64                                            
+---
+kind: Service
+apiVersion: v1
+metadata:
+  name: valheim
+spec:
+  ports:
+    - name: udp1
+      port: 2456
+    - name: udp2
+      port: 2457
+    - name: udp3
+      port: 2457            
+  selector:
+    app.kubernetes.io/name: valheim-server
+  type: LoadBalancer
+  loadBalancerIP: 192.168.1.246    
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: valheim-server
